@@ -1,0 +1,14 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.dripmetrics/mcp",
+  "title": "DripMetrics",
+  "description": "Crypto market microstructure, options, and on-chain metrics. Free discovery; $0.05/call via x402.",
+  "version": "1.0.0",
+  "websiteUrl": "https://dripmetrics.ai",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.dripmetrics.ai/mcp"
+    }
+  ]
+}
