@@ -89,7 +89,7 @@ await client.connect(
 
 const paying = withX402Client(client, {
   account: privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`),
-  network: "eip155:8453", // Base USDC; use "eip155:4663" for Robinhood Chain USDG
+  network: "eip155:8453", // Base USDC
 });
 
 const result = await paying.callTool(null, {
@@ -100,12 +100,18 @@ const result = await paying.callTool(null, {
 
 The wallet key stays in the agent process; it is never sent to DripMetrics.
 
+`withX402Client` currently pays with Base USDC only: it does not expose x402
+spend controls, and current x402 clients only auto-allow default stablecoins.
+To pay with USDG on Robinhood Chain, allow-list it with
+`spendControls.allowedAssets` on a plain `x402Client`;
+`examples/buy-vpin.ts` does this with `PAY_NETWORK=eip155:4663`.
+
 A complete runnable version — free discovery, free quote, then one paid
 VPIN fetch — is in [`examples/buy-vpin.ts`](examples/buy-vpin.ts):
 
 ```bash
 npm init -y && npm pkg set type=module
-npm install @modelcontextprotocol/sdk agents @x402/core @x402/evm viem tsx
+npm install @modelcontextprotocol/sdk @x402/core @x402/evm viem tsx
 WALLET_KEY=0x... npx tsx examples/buy-vpin.ts
 # or pay with USDG on Robinhood Chain:
 WALLET_KEY=0x... PAY_NETWORK=eip155:4663 npx tsx examples/buy-vpin.ts

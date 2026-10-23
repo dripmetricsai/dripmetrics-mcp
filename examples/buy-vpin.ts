@@ -4,7 +4,7 @@
  *
  * Setup (any empty directory):
  *   npm init -y && npm pkg set type=module
- *   npm install @modelcontextprotocol/sdk agents @x402/core @x402/evm viem tsx
+ *   npm install @modelcontextprotocol/sdk @x402/core @x402/evm viem tsx
  *   WALLET_KEY=0x... npx tsx buy-vpin.ts
  *   WALLET_KEY=0x... PAY_NETWORK=eip155:4663 npx tsx buy-vpin.ts   # Robinhood Chain USDG
  *
@@ -12,19 +12,31 @@
  * (default) or USDG on Robinhood Chain (PAY_NETWORK=eip155:4663).
  * The key never leaves this process: it signs an EIP-3009 stablecoin transfer
  * authorization locally, and only the signed payload goes over the wire.
+ *
+ * This follows the MCP x402 convention directly: an unpaid tool call returns
+ * the challenge in _meta["x402/error"], and the retry carries the signed
+ * payload in _meta["x402/payment"]. Wrappers such as the Cloudflare agents
+ * SDK's withX402Client do the same, but do not currently expose x402 spend
+ * controls, so they can only pay with default stablecoins (Base USDC).
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { withX402Client } from "agents/x402";
+import { x402Client } from "@x402/core/client";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 
 const MCP_URL = "https://mcp.dripmetrics.ai/mcp";
 const METRIC = { id: "metrics/vpin", params: { pair: "BTC-USD", window: "1h" } };
+const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
 const ASSETS: Record<string, string> = { "eip155:8453": "USDC", "eip155:4663": "USDG" };
-const NETWORK = process.env.PAY_NETWORK ?? "eip155:8453";
+const NETWORK = (process.env.PAY_NETWORK ?? "eip155:8453") as `${string}:${string}`;
 const ASSET = ASSETS[NETWORK];
+const MAX_ATOMIC = "100000"; // refuse to pay more than $0.10 of USDG per call
 
-function firstText(result: { content?: unknown }): unknown {
+type ToolResult = { content?: unknown; isError?: boolean; _meta?: Record<string, unknown> };
+type Challenge = Parameters<x402Client["createPaymentPayload"]>[0];
+
+function firstText(result: ToolResult): unknown {
   const content = result.content as Array<{ type: string; text?: string }> | undefined;
   const text = content?.find((c) => c.type === "text")?.text;
   return text ? JSON.parse(text) : undefined;
@@ -43,18 +55,18 @@ async function main() {
   await client.connect(new StreamableHTTPClientTransport(new URL(MCP_URL)));
 
   // 1. Discovery is free.
-  const listing = await client.callTool({
+  const listing = (await client.callTool({
     name: "list_metrics",
     arguments: { family: "Exchange metrics" },
-  });
+  })) as ToolResult;
   const catalog = firstText(listing) as { count: number };
   console.log(`Catalog: ${catalog.count} exchange metrics available.`);
 
   // 2. Quote is free too — the exact challenge the API will issue, no payment made.
-  const quote = await client.callTool({
+  const quote = (await client.callTool({
     name: "get_payment_requirements",
     arguments: METRIC,
-  });
+  })) as ToolResult;
   const requirements = firstText(quote) as {
     accepts?: Array<{ amount: string; network: string; payTo: string }>;
   };
@@ -65,21 +77,37 @@ async function main() {
     );
   }
 
-  // 3. The paid fetch. withX402Client detects the 402 in _meta["x402/error"],
-  //    signs it with the local key, and retries with _meta["x402/payment"].
-  const paying = withX402Client(client, {
-    account: privateKeyToAccount(key as `0x${string}`),
-    network: NETWORK, // preferred option from the challenge
+  // 3. The paid fetch. An unpaid call returns the challenge in _meta["x402/error"].
+  const unpaid = (await client.callTool({ name: "get_metric", arguments: METRIC })) as ToolResult;
+  const challenge = unpaid._meta?.["x402/error"] as Challenge | undefined;
+  if (!unpaid.isError || !challenge?.accepts?.length) {
+    throw new Error("Expected an x402 payment challenge from get_metric.");
+  }
+
+  // Sign only for the chosen network. USDG is not a default x402 asset, so it
+  // must be allow-listed in spend controls; Base USDC is allowed by default.
+  const payments = new x402Client();
+  registerExactEvmScheme(payments, {
+    signer: privateKeyToAccount(key as `0x${string}`),
+    networks: [NETWORK],
+  });
+  payments.setSpendControls({
+    allowedAssets: [{ network: "eip155:4663", asset: USDG, maxAmountPerPayment: MAX_ATOMIC }],
   });
 
-  const result = await paying.callTool(
-    async (accepts) => {
-      const amount = accepts.find((a) => a.network === NETWORK)?.amount ?? 0;
-      console.log(`Approving payment of ${Number(amount) / 1e6} ${ASSET}...`);
-      return true;
-    },
-    { name: "get_metric", arguments: METRIC },
-  );
+  const payload = await payments.createPaymentPayload({
+    x402Version: challenge.x402Version ?? 2,
+    resource: challenge.resource,
+    accepts: challenge.accepts,
+    extensions: challenge.extensions,
+  });
+  console.log(`Approving payment of ${Number(payload.accepted.amount) / 1e6} ${ASSET}...`);
+
+  const result = (await client.callTool({
+    name: "get_metric",
+    arguments: METRIC,
+    _meta: { "x402/payment": btoa(JSON.stringify(payload)) },
+  })) as ToolResult;
 
   if (result.isError) {
     console.error("Paid call failed:", JSON.stringify(firstText(result), null, 2));
