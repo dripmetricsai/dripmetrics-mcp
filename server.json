@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.dripmetrics/mcp",
   "title": "DripMetrics",
-  "description": "Crypto market microstructure, options, and on-chain metrics. Free discovery; $0.05/call via x402.",
-  "version": "1.0.0",
+  "description": "Crypto market microstructure and on-chain metrics. $0.05/call via x402: Base USDC or Robinhood USDG.",
+  "version": "1.0.1",
   "websiteUrl": "https://dripmetrics.ai",
   "remotes": [
     {

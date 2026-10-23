@@ -11,9 +11,10 @@ order-flow imbalance), BTC options (GEX, expected move, variance risk
 premium), Hyperliquid, Polymarket, on-chain activity, portfolio risk, and
 an AI-written BTC market summary.
 
-**No API key. No signup.** Discovery is free; paid calls cost $0.05 USDC
-per metric ($0.25 for the AI market summary), settled on Base via
-[x402](https://www.x402.org/). The same catalog is available as a plain
+**No API key. No signup.** Discovery is free; paid calls cost $0.05 per
+metric ($0.25 for the AI market summary) via [x402](https://www.x402.org/),
+paid in **USDC on Base** or **USDG on Robinhood Chain**. Every challenge
+offers both at the same price; your client picks the network it holds funds on. The same catalog is available as a plain
 HTTP API at [api.dripmetrics.ai](https://api.dripmetrics.ai)
 ([OpenAPI](https://api.dripmetrics.ai/openapi.json)).
 
@@ -88,7 +89,7 @@ await client.connect(
 
 const paying = withX402Client(client, {
   account: privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`),
-  network: "eip155:8453", // Base mainnet USDC
+  network: "eip155:8453", // Base USDC; use "eip155:4663" for Robinhood Chain USDG
 });
 
 const result = await paying.callTool(null, {
@@ -106,6 +107,8 @@ VPIN fetch — is in [`examples/buy-vpin.ts`](examples/buy-vpin.ts):
 npm init -y && npm pkg set type=module
 npm install @modelcontextprotocol/sdk agents @x402/core @x402/evm viem tsx
 WALLET_KEY=0x... npx tsx examples/buy-vpin.ts
+# or pay with USDG on Robinhood Chain:
+WALLET_KEY=0x... PAY_NETWORK=eip155:4663 npx tsx examples/buy-vpin.ts
 ```
 
 ## Links
