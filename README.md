@@ -1,21 +1,27 @@
 # DripMetrics MCP Server
 
+**Institutional-grade market microstructure, a cent at a time.**
+
 Pay-per-call crypto market data for agents, over [MCP](https://modelcontextprotocol.io):
 
 ```text
 https://mcp.dripmetrics.ai/mcp   (Streamable HTTP)
 ```
 
-Metrics cover exchange microstructure (VPIN, Kyle's lambda, roll spread,
-order-flow imbalance), BTC options (GEX, expected move, variance risk
-premium), Hyperliquid, Polymarket, on-chain activity, portfolio risk, and
-an AI-written BTC market summary.
+70+ metrics cover exchange microstructure (VPIN, Kyle's lambda, roll spread,
+order-flow imbalance), order books (Hyperliquid BBO, depth and execution
+impact; Kraken xStocks; BTC), BTC options (GEX, expected move, variance risk
+premium), Hyperliquid trades and participants, Aerodrome B20 pools,
+Polymarket, on-chain activity, portfolio risk, and an AI-written BTC market
+summary.
 
-**No API key. No signup.** Discovery is free; paid calls cost $0.05 per
-metric ($0.25 for the AI market summary) via [x402](https://www.x402.org/),
-paid in **USDC on Base** or **USDG on Robinhood Chain**. Every challenge
-offers both at the same price; your client picks the network it holds funds on. The same catalog is available as a plain
-HTTP API at [api.dripmetrics.ai](https://api.dripmetrics.ai)
+**No API key. No signup.** Discovery is free; paid calls cost $0.01–$0.25
+per metric via [x402](https://www.x402.org/), paid in **USDC on Base** or
+**USDG on Robinhood Chain**. Every challenge offers both at the same price;
+your client picks the network it holds funds on. `list_metrics` shows each
+metric's price, and the live x402 challenge is always authoritative. The same
+catalog is available as a plain HTTP API at
+[api.dripmetrics.ai](https://api.dripmetrics.ai)
 ([OpenAPI](https://api.dripmetrics.ai/openapi.json)).
 
 ## Tools
